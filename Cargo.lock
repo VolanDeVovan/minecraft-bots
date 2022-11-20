@@ -980,6 +980,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "azalea",
+ "azalea-protocol",
  "futures",
  "tokio",
 ]

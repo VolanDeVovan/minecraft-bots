@@ -11,4 +11,4 @@ anyhow = "1.0.66"
 futures = "0.3.25"
 
 azalea = "0.4.0"
-# azalea = { git = "https://github.com/mat-1/azalea", branch = "main", package = "azalea" }
+azalea-protocol = "0.4.0"
