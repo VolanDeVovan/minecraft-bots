@@ -1,25 +1,8 @@
 use std::env;
 
-use azalea::{plugins, Account, Client, Event};
+use azalea::{plugins, Account, Client, Event, pathfinder::State};
 use azalea_protocol::ServerAddress;
 
-use tokio::sync::mpsc;
-
-#[derive(Debug)]
-enum Message {
-    Connected(String),
-}
-
-#[derive(Clone, Debug)]
-struct State {
-    tx: mpsc::Sender<Message>,
-}
-
-impl State {
-    fn new(tx: mpsc::Sender<Message>) -> State {
-        State { tx }
-    }
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -28,8 +11,6 @@ async fn main() -> anyhow::Result<()> {
 
     let count: usize = env::var("COUNT").unwrap_or("10".to_string()).parse()?;
     let prefix = env::var("PREFIX").unwrap_or("bot_".to_string());
-
-    let (tx, mut rx) = mpsc::channel::<Message>(1);
 
     let task = tokio::spawn(async move {
         let username = format!("{}_{}", prefix, 1);
@@ -42,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
                 port,
             },
             plugins: plugins![],
-            state: State::new(tx.clone()),
+            state: State::default(),
             handle,
         })
         .await
@@ -51,9 +32,6 @@ async fn main() -> anyhow::Result<()> {
         });
     });
 
-    while let Some(msg) = rx.recv().await {
-        println!("got = {:?}", msg);
-    }
 
     task.await?;
 
@@ -64,8 +42,6 @@ async fn handle(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
     match event {
         Event::Login => {
             println!("{} logged in", bot.profile.name);
-
-            state.tx.send(Message::Connected(bot.profile.name.to_string())).await?;
 
             bot.send_chat_packet("hello world").await?;
         }
