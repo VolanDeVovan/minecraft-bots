@@ -3,7 +3,7 @@ use std::env;
 use anyhow::Context;
 use azalea::{pathfinder::State, plugins, Account, Client, Event};
 use azalea_protocol::ServerAddress;
-use futures::{future::try_join_all, stream::FuturesUnordered, StreamExt};
+use futures::{stream::FuturesUnordered, StreamExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -12,8 +12,6 @@ async fn main() -> anyhow::Result<()> {
 
     let count: usize = env::var("COUNT").unwrap_or("10".to_string()).parse()?;
     let prefix = env::var("PREFIX").unwrap_or("bot".to_string());
-
-    // let mut tasks = Vec::with_capacity(count);
 
     let mut tasks = FuturesUnordered::new();
 
@@ -47,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
         match task? {
             Ok(username) => {
                 println!("{}: disconnected", username)
-            },
+            }
             Err(err) => {
                 println!("{:#}", err);
             }
