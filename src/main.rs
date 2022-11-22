@@ -1,8 +1,7 @@
 use std::env;
 
-use azalea::{plugins, Account, Client, Event, pathfinder::State};
+use azalea::{pathfinder::State, plugins, Account, Client, Event};
 use azalea_protocol::ServerAddress;
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -10,30 +9,39 @@ async fn main() -> anyhow::Result<()> {
     let port: u16 = env::var("PORT").unwrap_or("25565".to_string()).parse()?;
 
     let count: usize = env::var("COUNT").unwrap_or("10".to_string()).parse()?;
-    let prefix = env::var("PREFIX").unwrap_or("bot_".to_string());
+    let prefix = env::var("PREFIX").unwrap_or("bot".to_string());
 
-    let task = tokio::spawn(async move {
-        let username = format!("{}_{}", prefix, 1);
-        let account = Account::offline(&username);
 
-        azalea::start(azalea::Options {
-            account,
-            address: ServerAddress {
-                host: host.clone(),
-                port,
-            },
-            plugins: plugins![],
-            state: State::default(),
-            handle,
-        })
-        .await
-        .unwrap_or_else(|err| {
-            println!("{}: {}", username, err);
+    let mut tasks = Vec::with_capacity(count);
+
+    for i in 1..count + 1 {
+        let host = host.clone();
+        let prefix = prefix.clone();
+
+        let task = tokio::spawn(async move {
+            let username = format!("{}_{}", prefix, i);
+            let account = Account::offline(&username);
+
+            azalea::start(azalea::Options {
+                account,
+                address: ServerAddress {
+                    host: host.clone(),
+                    port,
+                },
+                plugins: plugins![],
+                state: State::default(),
+                handle,
+            })
+            .await
         });
-    });
+
+        tasks.push(task);
+    }
 
 
-    task.await?;
+    for task in tasks {
+        task.await??;
+    }
 
     Ok(())
 }
