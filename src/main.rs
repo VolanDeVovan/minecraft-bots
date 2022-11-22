@@ -1,12 +1,14 @@
 use std::env;
-
 use anyhow::Context;
-use azalea::{pathfinder::State, plugins, Account, Client, Event};
+use azalea::{pathfinder::{State, self, BlockPosGoal}, plugins, Account, Client, Event, prelude::Trait, BlockPos, Vec3};
 use azalea_protocol::ServerAddress;
 use futures::{stream::FuturesUnordered, StreamExt};
+use tracing::Level;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt().with_max_level(Level::DEBUG).init();
+
     let host = env::var("HOST").unwrap_or("localhost".to_string());
     let port: u16 = env::var("PORT").unwrap_or("25565".to_string()).parse()?;
 
@@ -29,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
                     host: host.clone(),
                     port,
                 },
-                plugins: plugins![],
+                plugins: plugins![pathfinder::Plugin::default()],
                 state: State::default(),
                 handle,
             })
