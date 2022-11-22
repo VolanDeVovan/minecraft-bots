@@ -1,7 +1,9 @@
 use std::env;
 
+use anyhow::Context;
 use azalea::{pathfinder::State, plugins, Account, Client, Event};
 use azalea_protocol::ServerAddress;
+use futures::{future::try_join_all, stream::FuturesUnordered, StreamExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -11,8 +13,9 @@ async fn main() -> anyhow::Result<()> {
     let count: usize = env::var("COUNT").unwrap_or("10".to_string()).parse()?;
     let prefix = env::var("PREFIX").unwrap_or("bot".to_string());
 
+    // let mut tasks = Vec::with_capacity(count);
 
-    let mut tasks = Vec::with_capacity(count);
+    let mut tasks = FuturesUnordered::new();
 
     for i in 1..count + 1 {
         let host = host.clone();
@@ -33,14 +36,22 @@ async fn main() -> anyhow::Result<()> {
                 handle,
             })
             .await
+            .with_context(|| format!("{} failed to connect", username.clone()))
+            .and(Ok(username))
         });
 
         tasks.push(task);
     }
 
-
-    for task in tasks {
-        task.await??;
+    while let Some(task) = tasks.next().await {
+        match task? {
+            Ok(username) => {
+                println!("{}: disconnected", username)
+            },
+            Err(err) => {
+                println!("{:#}", err);
+            }
+        }
     }
 
     Ok(())
@@ -49,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
 async fn handle(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
     match event {
         Event::Login => {
-            println!("{} logged in", bot.profile.name);
+            println!("{}: connected", bot.profile.name);
 
             bot.send_chat_packet("hello world").await?;
         }
