@@ -7,6 +7,20 @@ use azalea_protocol::ServerAddress;
 use futures::{stream::FuturesUnordered, StreamExt};
 use tracing::{error, info};
 
+pub mod config;
+pub mod ui;
+
+pub struct App {
+    config: config::Config,
+}
+
+impl App {
+    pub fn new(config: config::Config) -> Self {
+        Self { config }
+    }
+}
+
+
 pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> anyhow::Result<()> {
     let mut tasks = FuturesUnordered::new();
 

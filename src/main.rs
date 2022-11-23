@@ -1,27 +1,47 @@
-use clap::Parser;
-use config::Config;
-use minecraft_bots::run_bots;
-use tracing::{info, Level};
+use std::io;
 
-mod config;
+use clap::Parser;
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use minecraft_bots::{config, App, ui};
+use tracing::Level;
+use tui::{backend::CrosstermBackend, Terminal};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::DEBUG)
-        .init();
+    // tracing_subscriber::fmt()
+    //     .with_max_level(Level::DEBUG)
+    //     .init();
 
-    let Config {
-        host,
-        port,
-        count,
-        prefix,
-    } = Config::parse();
+    // Init config and create app state
+    let config = config::Config::parse();
+    let app = App::new(config);
 
-    info!(
-        "host: {}, port: {}, count: {}, prefix: {}",
-        host, port, count, prefix
-    );
+    // Init terminal ui
+    enable_raw_mode()?;
 
-    run_bots(host, port, count, prefix).await
+    let mut stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    execute!(
+        terminal.backend_mut(),
+        EnterAlternateScreen,
+        EnableMouseCapture
+    )?;
+    
+    ui::run_app(&mut terminal, app)?;
+
+    // Disable terminal ui
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+
+    Ok(())
 }
