@@ -50,7 +50,7 @@ pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> 
     Ok(())
 }
 
-async fn handle(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
+async fn handle(bot: Client, event: Event, _state: State) -> anyhow::Result<()> {
     match event {
         Event::Login => {
             info!("{}: connected", bot.profile.name);
