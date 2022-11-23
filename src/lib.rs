@@ -1,11 +1,13 @@
 use anyhow::Context;
-use azalea::{pathfinder::{State, self, BlockPosGoal}, plugins, Account, Client, Event, prelude::Trait, BlockPos, Vec3};
+use azalea::{
+    pathfinder::{self, State},
+    plugins, Account, Client, Event,
+};
 use azalea_protocol::ServerAddress;
 use futures::{stream::FuturesUnordered, StreamExt};
+use tracing::{error, info};
 
-pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> anyhow::Result<()>{
-
-
+pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> anyhow::Result<()> {
     let mut tasks = FuturesUnordered::new();
 
     for i in 1..count + 1 {
@@ -37,10 +39,10 @@ pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> 
     while let Some(task) = tasks.next().await {
         match task? {
             Ok(username) => {
-                println!("{}: disconnected", username)
+                info!("{}: disconnected", username)
             }
             Err(err) => {
-                println!("{:#}", err);
+                error!("{:#}", err);
             }
         }
     }
@@ -48,17 +50,16 @@ pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> 
     Ok(())
 }
 
-
 async fn handle(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
     match event {
         Event::Login => {
-            println!("{}: connected", bot.profile.name);
+            info!("{}: connected", bot.profile.name);
 
             bot.send_chat_packet("hello world").await?;
         }
 
         Event::Chat(m) => {
-            println!("{}: {}", bot.profile.name, m.message().to_ansi(None));
+            info!("{}: {}", bot.profile.name, m.message().to_ansi(None));
         }
 
         _ => {}
