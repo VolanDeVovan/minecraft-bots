@@ -1,62 +1,223 @@
-use anyhow::Context;
-use azalea::{
-    pathfinder::{self, State},
-    plugins, Account, Client, Event,
+use std::{
+    fmt::Debug,
+    sync::{Arc, Mutex},
 };
+
+use azalea::{plugins, Account, Client, Event};
+use azalea_chat::text_component::TextComponent;
 use azalea_protocol::ServerAddress;
+use config::Config;
 use futures::{stream::FuturesUnordered, StreamExt};
-use tracing::{error, info};
+use tokio::sync::mpsc;
+use tui::widgets::ListState;
 
 pub mod config;
 pub mod ui;
+pub mod chat;
 
 pub struct App {
-    config: config::Config,
+    pub bots: Vec<Bot>,
+
+    pub state: ListState,
 }
 
 impl App {
-    pub fn new(config: config::Config) -> Self {
-        Self { config }
+    pub fn new() -> Self {
+        Self {
+            bots: Vec::new(),
+            state: ListState::default(),
+        }
+    }
+
+    pub fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.bots.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    pub fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.bots.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    pub fn unselect(&mut self) {
+        self.state.select(None);
     }
 }
 
+type Username = String;
 
-pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> anyhow::Result<()> {
-    let mut tasks = FuturesUnordered::new();
+#[derive(Debug)]
+pub struct Bot {
+    username: Username,
+
+    state: BotState,
+
+    chat: Vec<azalea_chat::Component>,
+}
+
+impl Bot {
+    fn new(username: Username) -> Self {
+        Self {
+            username,
+            state: BotState::Connecting,
+            chat: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum BotState {
+    Connecting,
+    Joined,
+    Leaved,
+    Error(anyhow::Error),
+}
+
+#[derive(Debug, Clone)]
+pub struct State {
+    tx: mpsc::Sender<Message>,
+}
+
+impl State {
+    fn new(tx: mpsc::Sender<Message>) -> Self {
+        Self { tx }
+    }
+}
+
+#[derive(Debug)]
+pub enum Message {
+    Joined(Username),
+    Leaved(Username),
+
+    Message(Username, azalea_chat::Component),
+
+    Error(Username, anyhow::Error),
+}
+
+pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()> {
+    let config::Config {
+        host,
+        port,
+        count,
+        prefix,
+    } = config;
+
+    let (tx, mut rx) = mpsc::channel::<Message>(16);
 
     for i in 1..count + 1 {
         let host = host.clone();
         let prefix = prefix.clone();
 
+        let tx = tx.clone();
+
+        let username = format!("{}_{}", prefix, i);
+
+        let bot = Bot::new(username.clone());
+        app.lock().unwrap().bots.push(bot);
+
         let task = tokio::spawn(async move {
-            let username = format!("{}_{}", prefix, i);
             let account = Account::offline(&username);
 
-            azalea::start(azalea::Options {
+            let state = State::new(tx);
+
+            let tx = state.tx.clone();
+
+            let bot = azalea::start(azalea::Options {
                 account,
                 address: ServerAddress {
                     host: host.clone(),
                     port,
                 },
-                plugins: plugins![pathfinder::Plugin::default()],
-                state: State::default(),
+                plugins: plugins![],
+                state,
                 handle,
             })
-            .await
-            .with_context(|| format!("{} failed to connect", username.clone()))
-            .and(Ok(username))
-        });
+            .await;
 
-        tasks.push(task);
+            match bot {
+                Ok(()) => {
+                    tx.send(Message::Leaved(username)).await.unwrap();
+                }
+
+                Err(err) => {
+                    tx.send(Message::Error(username, err.into())).await.unwrap();
+                }
+            }
+        });
     }
 
-    while let Some(task) = tasks.next().await {
-        match task? {
-            Ok(username) => {
-                info!("{}: disconnected", username)
+    while let Some(message) = rx.recv().await {
+        match message {
+            Message::Joined(username) => {
+                app.lock()
+                    .unwrap()
+                    .bots
+                    .iter_mut()
+                    .find(|bot| bot.username == username)
+                    .unwrap()
+                    .state = BotState::Joined;
             }
-            Err(err) => {
-                error!("{:#}", err);
+            Message::Leaved(username) => {
+                app.lock()
+                    .unwrap()
+                    .bots
+                    .iter_mut()
+                    .find(|bot| bot.username == username)
+                    .unwrap()
+                    .state = BotState::Leaved;
+            }
+
+            Message::Message(username, msg) => {
+                app.lock()
+                    .unwrap()
+                    .bots
+                    .iter_mut()
+                    .find(|bot| bot.username == username)
+                    .unwrap()
+                    .chat
+                    .push(msg);
+            }
+
+            Message::Error(username, err) => {
+                let text = err.to_string();
+                
+                app.lock()
+                    .unwrap()
+                    .bots
+                    .iter_mut()
+                    .find(|bot| bot.username == username)
+                    .unwrap()
+                    .state = BotState::Error(err);
+
+                app.lock()
+                    .unwrap()
+                    .bots
+                    .iter_mut()
+                    .find(|bot| bot.username == username)
+                    .unwrap()
+                    .chat
+                    .push(azalea_chat::Component::Text(TextComponent::new(format!(
+                        "§c{}",
+                        text
+                    ))));
             }
         }
     }
@@ -64,16 +225,15 @@ pub async fn run_bots(host: String, port: u16, count: usize, prefix: String) -> 
     Ok(())
 }
 
-async fn handle(bot: Client, event: Event, _state: State) -> anyhow::Result<()> {
+async fn handle(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
     match event {
-        Event::Login => {
-            info!("{}: connected", bot.profile.name);
-
-            bot.send_chat_packet("hello world").await?;
-        }
+        Event::Login => state.tx.send(Message::Joined(bot.profile.name)).await?,
 
         Event::Chat(m) => {
-            info!("{}: {}", bot.profile.name, m.message().to_ansi(None));
+            state
+                .tx
+                .send(Message::Message(bot.profile.name, m.message()))
+                .await?
         }
 
         _ => {}

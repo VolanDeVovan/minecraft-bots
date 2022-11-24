@@ -1,6 +1,6 @@
 use clap::Parser;
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct Config {
     /// Server address where bots will connect
     #[clap(long, default_value = "localhost")]

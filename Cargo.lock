@@ -1059,6 +1059,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "azalea",
+ "azalea-chat",
  "azalea-protocol",
  "clap",
  "crossterm",
