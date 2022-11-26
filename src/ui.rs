@@ -29,17 +29,8 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: Arc<Mutex<App>>) -> 
                 _ => {}
             }
         }
-        // match event::read()? {
-        //     Event::FocusGained => todo!(),
-        //     Event::FocusLost => todo!(),
-        //     Event::Key(_) => todo!(),
-        //     Event::Mouse(_) => todo!(),
-        //     Event::Paste(_) => todo!(),
-        //     Event::Resize(_, _) => todo!(),
-        // };
     }
 
-    Ok(())
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
@@ -83,7 +74,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             match msg.into_text() {
                 Ok(msg) => text.extend(msg),
                 Err(_) => text.extend(Text::raw(msg)),
-            }
+            };
         });
 
         let paragraph = Paragraph::new(text)

@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     // Init terminal ui
     enable_raw_mode()?;
 
-    let mut stdout = io::stdout();
+    let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 

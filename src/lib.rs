@@ -7,7 +7,6 @@ use azalea::{plugins, Account, Client, Event};
 use azalea_chat::text_component::TextComponent;
 use azalea_protocol::ServerAddress;
 use config::Config;
-use futures::{stream::FuturesUnordered, StreamExt};
 use tokio::sync::mpsc;
 use tui::widgets::ListState;
 
