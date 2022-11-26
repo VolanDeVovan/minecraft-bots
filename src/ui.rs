@@ -58,23 +58,19 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         .constraints([Constraint::Length(1), Constraint::Min(0)].as_ref())
         .split(f.size());
 
-    // let total = app.bots.len();
-    // let joined = app
-    //     .bots
-    //     .iter()
-    //     .filter(|bot| matches!(bot.state, BotState::Joined))
-    //     .collect::<Vec<_>>()
-    //     .len();
-    // let percent = joined as f32 / total as f32 * 100.0;
-
     let text = Spans::from(vec![
         Span::raw("Minecraft bots"),
         Span::raw(" | "),
         Span::raw(format!("{}:{}", config.host, config.port)),
     ]);
 
-    let header =
-        Paragraph::new(text).block(Block::default().style(Style::default().bg(Color::Cyan)));
+    let header = Paragraph::new(text).block(
+        Block::default().style(
+            Style::default()
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    );
 
     f.render_widget(header, layout[0]);
 
@@ -104,8 +100,21 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         })
         .collect();
 
+    let total = app.bots.len();
+    let joined = app
+        .bots
+        .iter()
+        .filter(|bot| matches!(bot.state, BotState::Joined))
+        .collect::<Vec<_>>()
+        .len();
+
+    let percent = joined as f32 / total as f32 * 100.0;
     let items = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Bots"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("Bots {}/{} ({}%)", joined, total, percent as u16)),
+        )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
     f.render_stateful_widget(items, chunks[0], &mut app.state);
