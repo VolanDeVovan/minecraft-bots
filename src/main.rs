@@ -1,6 +1,6 @@
 use std::{
     io,
-    sync::{Arc, Mutex}, time::Duration,
+    sync::{Arc, Mutex},
 };
 
 use clap::Parser;
@@ -44,7 +44,6 @@ fn main() -> anyhow::Result<()> {
         EnableMouseCapture,
     )?;
 
-    let tick_rate = Duration::from_millis(250);
     ui::run_app(&mut terminal, app, &config)?;
 
     // Disable terminal ui
