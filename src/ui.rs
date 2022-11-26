@@ -1,16 +1,15 @@
 use std::sync::{Arc, Mutex};
 
-use crossterm::event::{self, read, Event, KeyCode};
+use ansi_to_tui::IntoText;
+use crossterm::event::{self, Event, KeyCode};
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Cell, List, ListItem, Paragraph, Row, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame, Terminal,
 };
-use ansi_to_tui::IntoText;
-
 
 use crate::App;
 
@@ -79,20 +78,13 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     if let Some(i) = app.state.selected() {
         let mut text: Text = Text::default();
 
-        app
-            .bots
-            .get(i)
-            .unwrap()
-            .chat
-            .iter()
-            .for_each(|msg| {
-                let msg = msg.to_ansi(None);
-                match msg.into_text() {
-                    Ok(msg) => text.extend(msg),
-                    Err(_) => text.extend(Text::raw(msg))
-                }
-            });
-
+        app.bots.get(i).unwrap().chat.iter().for_each(|msg| {
+            let msg = msg.to_ansi(None);
+            match msg.into_text() {
+                Ok(msg) => text.extend(msg),
+                Err(_) => text.extend(Text::raw(msg)),
+            }
+        });
 
         let paragraph = Paragraph::new(text)
             .block(Block::default().title("Chat").borders(Borders::ALL))
@@ -100,12 +92,4 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
         f.render_widget(paragraph, chunks[1]);
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use crossterm::style::Colored;
-
-    #[test]
-    fn parse_ansi() {}
 }
