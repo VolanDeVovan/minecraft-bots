@@ -9,8 +9,10 @@ use tui::{
     widgets::{Block, Borders, Cell, List, ListItem, Paragraph, Row, Wrap},
     Frame, Terminal,
 };
+use ansi_to_tui::IntoText;
 
-use crate::{chat, App};
+
+use crate::App;
 
 pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: Arc<Mutex<App>>) -> anyhow::Result<()> {
     loop {
@@ -75,19 +77,22 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_stateful_widget(items, chunks[0], &mut app.state);
 
     if let Some(i) = app.state.selected() {
-        let text: Vec<Spans> = app
+        let mut text: Text = Text::default();
+
+        app
             .bots
             .get(i)
             .unwrap()
             .chat
             .iter()
-            .map(|msg| {
-                chat::convert_component_to_span(msg)
-                // let span = Span::from(msg.to_ansi(None));
+            .for_each(|msg| {
+                let msg = msg.to_ansi(None);
+                match msg.into_text() {
+                    Ok(msg) => text.extend(msg),
+                    Err(_) => text.extend(Text::raw(msg))
+                }
+            });
 
-                // Spans::from(span)
-            })
-            .collect();
 
         let paragraph = Paragraph::new(text)
             .block(Block::default().title("Chat").borders(Borders::ALL))

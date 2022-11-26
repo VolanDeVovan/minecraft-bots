@@ -13,7 +13,6 @@ use tui::widgets::ListState;
 
 pub mod config;
 pub mod ui;
-pub mod chat;
 
 pub struct App {
     pub bots: Vec<Bot>,
