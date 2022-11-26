@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 use ansi_to_tui::IntoText;
 use crossterm::event::{self, Event, KeyCode};
@@ -13,24 +16,39 @@ use tui::{
 
 use crate::App;
 
-pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: Arc<Mutex<App>>) -> anyhow::Result<()> {
+pub fn run_app<B: Backend>(
+    terminal: &mut Terminal<B>,
+    app: Arc<Mutex<App>>,
+    tick_rate: Duration,
+) -> anyhow::Result<()> {
+    let mut last_tick = Instant::now();
+
     loop {
         terminal.draw(|f| ui(f, &mut app.lock().unwrap()))?;
 
-        if let Event::Key(key) = event::read()? {
-            let app = &mut app.lock().unwrap();
-            match key.code {
-                KeyCode::Char('q') => return Ok(()),
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or_else(|| Duration::from_secs(0));
 
-                KeyCode::Up => app.previous(),
-                KeyCode::Down => app.next(),
-                KeyCode::Left => app.unselect(),
+        if crossterm::event::poll(timeout)? {
+            if let Event::Key(key) = event::read()? {
+                let app = &mut app.lock().unwrap();
+                match key.code {
+                    KeyCode::Char('q') => return Ok(()),
 
-                _ => {}
+                    KeyCode::Up => app.previous(),
+                    KeyCode::Down => app.next(),
+                    KeyCode::Left => app.unselect(),
+
+                    _ => {}
+                }
             }
         }
-    }
 
+        if last_tick.elapsed() >= tick_rate {
+            last_tick = Instant::now();
+        }
+    }
 }
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
