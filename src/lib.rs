@@ -132,7 +132,7 @@ pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()
         let bot = Bot::new(username.clone());
         app.lock().unwrap().bots.push(bot);
 
-        let task = tokio::spawn(async move {
+        tokio::spawn(async move {
             let account = Account::offline(&username);
 
             let state = State::new(tx);
@@ -164,20 +164,18 @@ pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()
     }
 
     while let Some(message) = rx.recv().await {
+        let mut app = app.lock().unwrap();
+
         match message {
             Message::Joined(username) => {
-                app.lock()
-                    .unwrap()
-                    .bots
+                app.bots
                     .iter_mut()
                     .find(|bot| bot.username == username)
                     .unwrap()
                     .state = BotState::Joined;
             }
             Message::Leaved(username) => {
-                app.lock()
-                    .unwrap()
-                    .bots
+                app.bots
                     .iter_mut()
                     .find(|bot| bot.username == username)
                     .unwrap()
@@ -185,9 +183,7 @@ pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()
             }
 
             Message::Message(username, msg) => {
-                app.lock()
-                    .unwrap()
-                    .bots
+                app.bots
                     .iter_mut()
                     .find(|bot| bot.username == username)
                     .unwrap()
@@ -197,18 +193,14 @@ pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()
 
             Message::Error(username, err) => {
                 let text = err.to_string();
-                
-                app.lock()
-                    .unwrap()
-                    .bots
+
+                app.bots
                     .iter_mut()
                     .find(|bot| bot.username == username)
                     .unwrap()
                     .state = BotState::Error(err);
 
-                app.lock()
-                    .unwrap()
-                    .bots
+                app.bots
                     .iter_mut()
                     .find(|bot| bot.username == username)
                     .unwrap()
