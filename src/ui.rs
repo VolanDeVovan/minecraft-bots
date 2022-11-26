@@ -14,19 +14,20 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::App;
+use crate::{config::Config, App, BotState};
 
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     app: Arc<Mutex<App>>,
-    tick_rate: Duration,
+    config: &Config,
 ) -> anyhow::Result<()> {
     let mut last_tick = Instant::now();
 
     loop {
-        terminal.draw(|f| ui(f, &mut app.lock().unwrap()))?;
+        terminal.draw(|f| ui(f, &mut app.lock().unwrap(), config))?;
 
-        let timeout = tick_rate
+        let timeout = config
+            .rate
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
 
@@ -45,18 +46,43 @@ pub fn run_app<B: Backend>(
             }
         }
 
-        if last_tick.elapsed() >= tick_rate {
+        if last_tick.elapsed() >= config.rate {
             last_tick = Instant::now();
         }
     }
 }
 
-pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
+pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)].as_ref())
+        .split(f.size());
+
+    // let total = app.bots.len();
+    // let joined = app
+    //     .bots
+    //     .iter()
+    //     .filter(|bot| matches!(bot.state, BotState::Joined))
+    //     .collect::<Vec<_>>()
+    //     .len();
+    // let percent = joined as f32 / total as f32 * 100.0;
+
+    let text = Spans::from(vec![
+        Span::raw("Minecraft bots"),
+        Span::raw(" | "),
+        Span::raw(format!("{}:{}", config.host, config.port)),
+    ]);
+
+    let header =
+        Paragraph::new(text).block(Block::default().style(Style::default().bg(Color::Cyan)));
+
+    f.render_widget(header, layout[0]);
+
     // Create two chunks with equal horizontal screen space
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(f.size());
+        .split(layout[1]);
 
     let items: Vec<ListItem> = app
         .bots
@@ -84,9 +110,9 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     f.render_stateful_widget(items, chunks[0], &mut app.state);
 
-    if let Some(i) = app.state.selected() {
-        let mut text: Text = Text::default();
+    let mut text: Text = Text::default();
 
+    if let Some(i) = app.state.selected() {
         app.bots.get(i).unwrap().chat.iter().for_each(|msg| {
             let msg = msg.to_ansi(None);
             match msg.into_text() {
@@ -94,11 +120,11 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
                 Err(_) => text.extend(Text::raw(msg)),
             };
         });
-
-        let paragraph = Paragraph::new(text)
-            .block(Block::default().title("Chat").borders(Borders::ALL))
-            .wrap(Wrap { trim: true });
-
-        f.render_widget(paragraph, chunks[1]);
     }
+
+    let paragraph = Paragraph::new(text)
+        .block(Block::default().title("Chat").borders(Borders::ALL))
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(paragraph, chunks[1]);
 }

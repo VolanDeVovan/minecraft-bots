@@ -45,7 +45,7 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     let tick_rate = Duration::from_millis(250);
-    ui::run_app(&mut terminal, app, tick_rate)?;
+    ui::run_app(&mut terminal, app, &config)?;
 
     // Disable terminal ui
     disable_raw_mode()?;

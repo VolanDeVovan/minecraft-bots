@@ -115,8 +115,7 @@ pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()
         host,
         port,
         count,
-        prefix,
-    } = config;
+        prefix, .. } = config;
 
     let (tx, mut rx) = mpsc::channel::<Message>(16);
 
