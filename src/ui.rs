@@ -55,7 +55,14 @@ pub fn run_app<B: Backend>(
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(0)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+            ]
+            .as_ref(),
+        )
         .split(f.size());
 
     let text = Spans::from(vec![
@@ -136,4 +143,21 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         .wrap(Wrap { trim: true });
 
     f.render_widget(paragraph, chunks[1]);
+
+    let key_style = Style::default().bg(Color::Black);
+    let description_style = Style::default().bg(Color::Cyan);
+
+    let text = Spans::from(vec![
+        Span::styled("Q", key_style),
+        Span::styled("Exit", description_style),
+    ]);
+
+    let bottom = Paragraph::new(text).block(
+        Block::default().style(
+            Style::default()
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    );
+    f.render_widget(bottom, layout[2]);
 }
