@@ -96,9 +96,9 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
             let span = Span::styled(
                 bot.username.clone(),
                 match bot.state {
-                    crate::BotState::Connecting => Style::default().fg(Color::White),
+                    crate::BotState::Connecting => Style::default().fg(Color::Yellow),
                     crate::BotState::Joined => Style::default().fg(Color::Green),
-                    crate::BotState::Leaved => Style::default().fg(Color::Gray),
+                    crate::BotState::Leaved => Style::default().fg(Color::DarkGray),
                     crate::BotState::Error(_) => Style::default().fg(Color::Red),
                 },
             );
