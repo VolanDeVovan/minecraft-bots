@@ -20,6 +20,7 @@ fn main() -> anyhow::Result<()> {
 
     // Run tokio runtimes
     let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(config.threads)
         .enable_all()
         .build()
         .expect("Failed building the Runtime");

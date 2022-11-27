@@ -27,6 +27,11 @@ pub struct Config {
     /// Specify in milis
     #[clap(long, value_parser=parse_duration, default_value = "250")]
     pub rate: Duration,
+
+    /// Amount of worker threads in runtime for bots
+    /// The default value is the number of cores available to the system.
+    #[clap(long, default_value_t = num_cpus::get())]
+    pub threads: usize,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

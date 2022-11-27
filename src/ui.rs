@@ -69,6 +69,8 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         Span::raw("Minecraft bots"),
         Span::raw(" | "),
         Span::raw(format!("{}:{}", config.host, config.port)),
+        Span::raw(" | "),
+        Span::raw(format!("{} threads", config.threads)),
     ]);
 
     let header = Paragraph::new(text).block(
