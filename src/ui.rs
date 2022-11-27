@@ -10,7 +10,7 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Wrap},
     Frame, Terminal,
 };
 
@@ -109,7 +109,6 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         })
         .collect();
 
-    let total = app.bots.len();
     let joined = app
         .bots
         .iter()
@@ -117,16 +116,48 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         .collect::<Vec<_>>()
         .len();
 
+    let error = app
+        .bots
+        .iter()
+        .filter(|bot| matches!(bot.state, BotState::Error(_)))
+        .collect::<Vec<_>>()
+        .len();
+
+    let leaved = app
+        .bots
+        .iter()
+        .filter(|bot| matches!(bot.state, BotState::Leaved))
+        .collect::<Vec<_>>()
+        .len();
+
+    let total = app.bots.len();
     let percent = joined as f32 / total as f32 * 100.0;
+
     let items = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(format!("Bots {}/{} ({}%)", joined, total, percent as u16)),
+                .title(Spans::from(vec![
+                    Span::raw("Bots "),
+                    Span::styled(format!("{} ", leaved), Style::default().fg(Color::DarkGray)),
+                    Span::styled(format!("{} ", error), Style::default().fg(Color::Red)),
+                    Span::styled(format!("({}%)", percent as usize), Style::default().fg(Color::Magenta)),
+                ])),
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
-    f.render_stateful_widget(items, chunks[0], &mut app.state);
+    let bot_block = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Length(1), Constraint::Min(0)].as_ref())
+        .split(chunks[0]);
+
+    let gauge = Gauge::default()
+        .percent(percent as u16)
+        .gauge_style(Style::default().fg(Color::Green))
+        .label(format!("{}/{}", joined, total));
+
+    f.render_widget(gauge, bot_block[0]);
+    f.render_stateful_widget(items, bot_block[1], &mut app.state);
 
     let mut text: Text = Text::default();
 
