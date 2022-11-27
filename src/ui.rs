@@ -7,7 +7,7 @@ use ansi_to_tui::IntoText;
 use crossterm::event::{self, Event, KeyCode};
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Wrap},
@@ -52,19 +52,7 @@ pub fn run_app<B: Backend>(
     }
 }
 
-pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Length(1),
-                Constraint::Min(0),
-                Constraint::Length(1),
-            ]
-            .as_ref(),
-        )
-        .split(f.size());
-
+fn draw_header<B: Backend>(f: &mut Frame<B>, _app: &mut App, config: &Config, area: Rect) {
     let text = Spans::from(vec![
         Span::raw("Minecraft bots"),
         Span::raw(" | "),
@@ -81,14 +69,29 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         ),
     );
 
-    f.render_widget(header, layout[0]);
+    f.render_widget(header, area);
+}
 
-    // Create two chunks with equal horizontal screen space
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(layout[1]);
+fn draw_bottom<B: Backend>(f: &mut Frame<B>, _app: &mut App, _config: &Config, area: Rect) {
+    let key_style = Style::default().bg(Color::Black);
+    let description_style = Style::default().bg(Color::Cyan);
 
+    let text = Spans::from(vec![
+        Span::styled("Q", key_style),
+        Span::styled("Exit", description_style),
+    ]);
+
+    let bottom = Paragraph::new(text).block(
+        Block::default().style(
+            Style::default()
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    );
+    f.render_widget(bottom, area);
+}
+
+fn draw_bot_block<B: Backend>(f: &mut Frame<B>, app: &mut App, _config: &Config, area: Rect) {
     let items: Vec<ListItem> = app
         .bots
         .iter()
@@ -141,7 +144,10 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
                     Span::raw("Bots "),
                     Span::styled(format!("{} ", leaved), Style::default().fg(Color::DarkGray)),
                     Span::styled(format!("{} ", error), Style::default().fg(Color::Red)),
-                    Span::styled(format!("({}%)", percent as usize), Style::default().fg(Color::Magenta)),
+                    Span::styled(
+                        format!("({}%)", percent as usize),
+                        Style::default().fg(Color::Magenta),
+                    ),
                 ])),
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
@@ -149,7 +155,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
     let bot_block = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![Constraint::Length(1), Constraint::Min(0)].as_ref())
-        .split(chunks[0]);
+        .split(area);
 
     let gauge = Gauge::default()
         .percent(percent as u16)
@@ -158,7 +164,9 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
 
     f.render_widget(gauge, bot_block[0]);
     f.render_stateful_widget(items, bot_block[1], &mut app.state);
+}
 
+fn draw_chat<B: Backend>(f: &mut Frame<B>, app: &mut App, _config: &Config, area: Rect) {
     let mut text: Text = Text::default();
 
     if let Some(i) = app.state.selected() {
@@ -175,22 +183,31 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
         .block(Block::default().title("Chat").borders(Borders::ALL))
         .wrap(Wrap { trim: true });
 
-    f.render_widget(paragraph, chunks[1]);
+    f.render_widget(paragraph, area);
+}
 
-    let key_style = Style::default().bg(Color::Black);
-    let description_style = Style::default().bg(Color::Cyan);
+pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, config: &Config) {
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length(1),
+                Constraint::Min(0),
+                Constraint::Length(1),
+            ]
+            .as_ref(),
+        )
+        .split(f.size());
 
-    let text = Spans::from(vec![
-        Span::styled("Q", key_style),
-        Span::styled("Exit", description_style),
-    ]);
+    draw_header(f, app, config, layout[0]);
+    draw_bottom(f, app, config, layout[2]);
 
-    let bottom = Paragraph::new(text).block(
-        Block::default().style(
-            Style::default()
-                .bg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-    );
-    f.render_widget(bottom, layout[2]);
+    // Create two chunks with equal horizontal screen space
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(layout[1]);
+
+    draw_bot_block(f, app, config, chunks[0]);
+    draw_chat(f, app, config, chunks[1])
 }
