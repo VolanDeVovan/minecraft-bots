@@ -216,7 +216,11 @@ pub async fn run_bots(config: Config, app: Arc<Mutex<App>>) -> anyhow::Result<()
 
 async fn handle(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
     match event {
-        Event::Login => state.tx.send(Message::Joined(bot.profile.name)).await?,
+        Event::Login => {
+            state.tx.send(Message::Joined(bot.profile.name.clone())).await?;
+
+            bot.send_command_packet("register 12345q 12345q").await?;
+        },
 
         Event::Chat(m) => {
             state
